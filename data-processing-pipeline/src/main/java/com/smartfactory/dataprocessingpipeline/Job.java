@@ -42,16 +42,16 @@ public class Job {
         ipFinder.setAddresses(Collections.singletonList("127.0.0.1:47500..47509"));
         cfg.setDiscoverySpi(new TcpDiscoverySpi().setIpFinder(ipFinder));
 
-        return Ignition.start(cfg);
+        return Ignition.getOrStart(cfg);
     }
 
     private static void setupCaches(Ignite ignite) {
-        IgniteCache<Integer, Device> devices = ignite.getOrCreateCache(Constants.DEVICES);
-        devices.put(1, new Device(1L, "Slitter", "This device is for slitting", "1.2.5"));
-        devices.put(2, new Device(2L, "Winder", "This device is for winding", "4.5.2"));
+        IgniteCache<Long, Device> devices = ignite.getOrCreateCache(Constants.DEVICES);
+        devices.put(1L, new Device(1L, "Slitter", "This device is for slitting", "1.2.5"));
+        devices.put(2L, new Device(2L, "Winder", "This device is for winding", "4.5.2"));
 
-        IgniteCache<Integer, Metric> metrics = ignite.getOrCreateCache(Constants.METRICS);
-        metrics.put(1, new Metric(1L, "Temperature", "C"));
-        metrics.put(2, new Metric(2L, "Pressure", "Pa"));
+        IgniteCache<Long, Metric> metrics = ignite.getOrCreateCache(Constants.METRICS);
+        metrics.put(1L, new Metric(1L, "Temperature", "C"));
+        metrics.put(2L, new Metric(2L, "Pressure", "Pa"));
     }
 }

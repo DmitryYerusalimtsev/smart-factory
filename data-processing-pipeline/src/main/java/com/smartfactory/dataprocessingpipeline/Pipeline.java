@@ -64,8 +64,6 @@ public class Pipeline {
 
         // TODO: Validation checks
 
-        // TODO: Enrich from Ignite
-
         DataStream<EnrichedTelemetry> enriched = AsyncDataStream.unorderedWait(telemetry, new Enricher(),
                 1000, TimeUnit.MILLISECONDS, 100);
 

@@ -8,7 +8,6 @@ import com.smartfactory.models.RawTelemetry;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
-import org.apache.ignite.Ignite;
 import org.apache.ignite.Ignition;
 import org.apache.ignite.configuration.IgniteConfiguration;
 import org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi;
@@ -39,22 +38,18 @@ public class Enricher extends RichAsyncFunction<RawTelemetry, EnrichedTelemetry>
 
     @Override
     public void asyncInvoke(RawTelemetry rawTelemetry, ResultFuture<EnrichedTelemetry> resultFuture) throws Exception {
-        var dd = devicesRepository.get(rawTelemetry.getDeviceId()).get();
-
         var device = devicesRepository.get(rawTelemetry.getDeviceId());
         var metric = metricsRepository.get(rawTelemetry.getMetricId());
 
-        device.thenCombine(metric, (d, m) -> {
-            return new EnrichedTelemetry(
-                    rawTelemetry.getDeviceId(),
-                    d.getType(),
-                    d.getSoftwareVersion(),
-                    rawTelemetry.getMetricId(),
-                    m.getName(),
-                    rawTelemetry.getValue(),
-                    m.getUom(),
-                    rawTelemetry.getEventTimestamp()
-            );
-        }).thenAccept((EnrichedTelemetry result) -> resultFuture.complete(Collections.singleton(result)));
+        device.thenCombine(metric, (d, m) -> new EnrichedTelemetry(
+                rawTelemetry.getDeviceId(),
+                d.getType(),
+                d.getSoftwareVersion(),
+                rawTelemetry.getMetricId(),
+                m.getName(),
+                rawTelemetry.getValue(),
+                m.getUom(),
+                rawTelemetry.getEventTimestamp()
+        )).thenAccept((EnrichedTelemetry result) -> resultFuture.complete(Collections.singleton(result)));
     }
 }
