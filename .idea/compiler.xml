@@ -8,6 +8,7 @@
         <outputRelativeToContentRoot value="true" />
         <module name="models" />
         <module name="data-generator" />
+        <module name="smart-factory" />
         <module name="rules-engine" />
         <module name="data-processing-pipeline" />
       </profile>

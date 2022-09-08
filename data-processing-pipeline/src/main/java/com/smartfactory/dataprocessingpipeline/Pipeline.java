@@ -1,6 +1,10 @@
 package com.smartfactory.dataprocessingpipeline;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializer;
 import com.smartfactory.dataprocessingpipeline.enrich.Enricher;
+import com.smartfactory.dataprocessingpipeline.validation.Validation;
 import com.smartfactory.models.EnrichedTelemetry;
 import com.smartfactory.models.RawTelemetry;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -12,8 +16,9 @@ import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.ignite.Ignite;
+import org.apache.flink.util.OutputTag;
 
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
@@ -57,19 +62,27 @@ public class Pipeline {
 
         var source = kafkaSource(brokers, sourceTopics, groupId);
         var sink = kafkaSink(brokers, sinkTopic);
+        var invalidSink = kafkaSink(brokers, sinkTopic + "-invalid");
 
-        // TODO: Deserialize
-        DataStream<RawTelemetry> telemetry = env.fromSource(source, WatermarkStrategy.noWatermarks(), "Telemetry")
-                .map(t -> new RawTelemetry(1L, 1L, "test", Instant.now()));
+        SingleOutputStreamOperator<RawTelemetry> telemetry =
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "Telemetry")
+                        .map(t -> {
+                            Gson gson = new GsonBuilder().registerTypeAdapter(Instant.class,
+                                    (JsonDeserializer<Instant>) (json, type, jsonDeserializationContext) ->
+                                            Instant.parse(json.getAsString())).create();
 
-        // TODO: Validation checks
+                            return gson.fromJson(t, RawTelemetry.class);
+                        })
+                        .process(new Validation());
 
         DataStream<EnrichedTelemetry> enriched = AsyncDataStream.unorderedWait(telemetry, new Enricher(),
                 1000, TimeUnit.MILLISECONDS, 100);
 
-        // TODO: Serialize
-        DataStream<String> output = enriched.map(Object::toString);
-
+        DataStream<String> output = enriched.map(t -> new Gson().toJson(t));
         output.sinkTo(sink);
+
+        final OutputTag<String> outputTag = new OutputTag<>("invalid") {};
+        DataStream<String> invalid = telemetry.getSideOutput(outputTag);
+        invalid.sinkTo(invalidSink);
     }
 }
