@@ -1,8 +1,6 @@
 package com.smartfactory.dataprocessingpipeline;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializer;
+import com.google.gson.*;
 import com.smartfactory.dataprocessingpipeline.enrich.Enricher;
 import com.smartfactory.dataprocessingpipeline.validation.Validation;
 import com.smartfactory.models.EnrichedTelemetry;
@@ -67,9 +65,9 @@ public class Pipeline {
         SingleOutputStreamOperator<RawTelemetry> telemetry =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "Telemetry")
                         .map(t -> {
-                            Gson gson = new GsonBuilder().registerTypeAdapter(Instant.class,
-                                    (JsonDeserializer<Instant>) (json, type, jsonDeserializationContext) ->
-                                            Instant.parse(json.getAsString())).create();
+                            Gson gson = new GsonBuilder()
+                                    .registerTypeAdapter(Instant.class, new InstantDeserializer())
+                                    .create();
 
                             return gson.fromJson(t, RawTelemetry.class);
                         })
@@ -78,7 +76,13 @@ public class Pipeline {
         DataStream<EnrichedTelemetry> enriched = AsyncDataStream.unorderedWait(telemetry, new Enricher(),
                 1000, TimeUnit.MILLISECONDS, 100);
 
-        DataStream<String> output = enriched.map(t -> new Gson().toJson(t));
+        DataStream<String> output = enriched.map(t -> {
+            Gson gson = new GsonBuilder()
+                    .registerTypeAdapter(Instant.class, new InstantSerializer())
+                    .create();
+
+            return gson.toJson(t);
+        });
         output.sinkTo(sink);
 
         final OutputTag<String> outputTag = new OutputTag<>("invalid") {};
