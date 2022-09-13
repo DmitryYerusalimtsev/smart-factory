@@ -18,6 +18,7 @@ import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 
 import java.time.Instant;
@@ -93,7 +94,7 @@ public class Pipeline {
             public boolean filter(EnrichedTelemetry value) {
                 return value.getDeviceId() == 1;
             }
-        }).oneOrMore();
+        }).oneOrMore().within(Time.seconds(2));
 
         PatternStream<EnrichedTelemetry> patternStream = CEP.pattern(telemetry, pattern).inProcessingTime();
 
